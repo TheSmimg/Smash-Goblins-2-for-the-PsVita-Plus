@@ -6,6 +6,25 @@ import Utils
 
 class Watcher:
     def __init__(self, bot: discord.Client, channel: discord.abc.GuildChannel):
+        """
+        A class that contains all of the hash information about a channel.
+        
+        Attributes
+        ----------
+        is_up_to_date : `asyncio.Event()`
+            An event that is set when the Watcher is not processing messages in this channel.
+        
+        Methods
+        -------
+        async process(message: `discord.Message`):
+            Processes the supplied message and checks if it's media is a repost.
+        async blacklist(message: `discord.Message`):
+            Adds the supplied message to the internal blacklist.
+        async raw_delete(payload: discord.RawMessageDeleteEvent):
+            Processes a RawMessageDeleteEvent to avoid detecting deleted messages as reposts.
+        
+            
+        """
         self.channel = channel
         self._hashes = {}
         self._blacklist = {}
@@ -26,7 +45,22 @@ class Watcher:
         self.task.add_done_callback(finish_worker)
 
 
-    async def process(self, message: discord.Message) -> None:
+    async def process(self, message: discord.Message) -> bool:
+        """
+        Processes the supplied message and checks if it's media is a repost.
+
+        Parameters
+        ----------
+        message : `discord.Message`
+            The message to process.
+        
+        Returns
+        -------
+        `True`:
+            Returns True when the message's media has been reposted.
+        `False`:
+            Returns False when the message's media has not been posted before.
+        """
         await self.is_up_to_date.wait()
         self.is_up_to_date.clear()
         for source in await Harvester.harvest_message(message):
@@ -40,10 +74,21 @@ class Watcher:
             # Match & permitted
             reply = await message.reply(embed=Utils.get_embed(message, "Erm... Repost!!", content=match))
             await reply.add_reaction('❌')
+            return True
         self.is_up_to_date.set()
+        return False
     
 
     async def blacklist(self, message: discord.Message) -> None:
+        """
+        Adds the supplied message to the internal blacklist.
+        This prohibits process() from detecting it as a repost.
+
+        Parameters
+        ----------
+        message : `discord.Message`
+            The message to add to the blacklist.
+        """
         await self.is_up_to_date.wait()
         self.is_up_to_date.clear()
         for source in await Harvester.harvest_message(message):
@@ -53,6 +98,18 @@ class Watcher:
 
     
     async def raw_delete(self, payload: discord.RawMessageDeleteEvent) -> None:
+        """
+        Processes a RawMessageDeleteEvent to avoid detecting deleted messages as reposts.
+
+        This will first check if the message is still within the bots message cache.
+        If it is not, it will delete any hashes belonging to a message of the same ID.
+        Note, if reposts of this message exist, they will be able to be freely reposted once.
+
+        Parameters
+        ----------
+        payload : `discord.RawMessageDeleteEvent`
+            The RawMessageDeleteEvent to process.  These are provided by the `on_raw_message_delete` event in discord.
+        """
         if payload.cached_message is not None:
             for source in await Harvester.harvest_message(payload.cached_message):
                 if url := self._blacklist.get(source):

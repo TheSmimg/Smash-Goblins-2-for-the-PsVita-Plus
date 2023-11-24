@@ -3,6 +3,7 @@ import asyncio
 import discord
 import hashlib
 import validators
+
 # Harvests hashed data sources from a message
 async def harvest_message(message: discord.Message) -> set[str]:
     urls = Harvester.parse_urls(message.content)
