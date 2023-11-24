@@ -55,10 +55,16 @@ class Watcher:
     async def raw_delete(self, payload: discord.RawMessageDeleteEvent) -> None:
         if payload.cached_message is not None:
             for source in await Harvester.harvest_message(payload.cached_message):
-                if self._blacklist.get(source):
+                if url := self._blacklist.get(source):
+                    if payload.cached_message.jump_url != url:
+                        continue
                     self._blacklist.pop(source)
-                if self._hashes.get(source):
+                    continue
+                if url := self._hashes.get(source):
+                    if payload.cached_message.jump_url != url:
+                        continue
                     self._hashes.pop(source)
+                    continue
             return
         for key, value in self._hashes.items:
             if int(value.split("/")[-1]) == payload.message_id:
