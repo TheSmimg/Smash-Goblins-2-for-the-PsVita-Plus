@@ -34,7 +34,7 @@ class Watcher:
             await bot.change_presence(status=discord.Status.idle)
             async for msg in channel.history(limit=None, oldest_first=True):
                 for source in await Harvester.harvest_message(msg):
-                    self._hashes[source] = msg.jump_url
+                    self._hashes[source] = [msg.jump_url]
             await bot.change_presence()
 
         def finish_worker(worker):
@@ -66,13 +66,14 @@ class Watcher:
         for source in await Harvester.harvest_message(message):
             if self._blacklist.get(source) is not None:
                 break
-            match = self._hashes.get(source)
-            if match is None:
-                self._hashes[source] = message.jump_url
+            # No match
+            if ( match := self._hashes.get(source) ) is None:
+                self._hashes[source] = [message.jump_url]
                 continue
-            self.is_up_to_date.set()
             # Match & permitted
-            reply = await message.reply(embed=Utils.get_embed(message, "Erm... Repost!!", content=match))
+            self._hashes[source].append(message.jump_url)
+            self.is_up_to_date.set()
+            reply = await message.reply(embed=Utils.get_embed(message, "Erm... Repost!!", content=match[0]))
             await reply.add_reaction('❌')
             return True
         self.is_up_to_date.set()
@@ -83,6 +84,7 @@ class Watcher:
         """
         Adds the supplied message to the internal blacklist.
         This prohibits process() from detecting it as a repost.
+        The supplied message *must* already be in the internal hash list.
 
         Parameters
         ----------
@@ -103,29 +105,34 @@ class Watcher:
 
         This will first check if the message is still within the bots message cache.
         If it is not, it will delete any hashes belonging to a message of the same ID.
-        Note, if reposts of this message exist, they will be able to be freely reposted once.
 
         Parameters
         ----------
         payload : `discord.RawMessageDeleteEvent`
             The RawMessageDeleteEvent to process.  These are provided by the `on_raw_message_delete` event in discord.
         """
-        if payload.cached_message is not None:
+        if payload.cached_message:
             for source in await Harvester.harvest_message(payload.cached_message):
-                if url := self._blacklist.get(source):
-                    if payload.cached_message.jump_url != url:
-                        continue
+                if self._blacklist.get(source):
                     self._blacklist.pop(source)
                     continue
-                if url := self._hashes.get(source):
-                    if payload.cached_message.jump_url != url:
-                        continue
-                    self._hashes.pop(source)
-                    continue
+                if self._hashes.get(source):
+                    self._hashes[source].remove(payload.cached_message.jump_url)
+                    # If removing this url empties the list, remove the entry
+                    if len(self._hashes[source]) == 0:
+                        self._hashes.pop(source)
             return
-        for key, value in self._hashes.items:
-            if int(value.split("/")[-1]) == payload.message_id:
-                self._hashes.pop(key)
-        for key, value in self._blacklist.items:
+        # Check _hashes
+        for key, value in self._hashes.items():
+            for url in value:
+                if int(url.split("/")[-1]) == payload.message_id:
+                    self._hashes[key].remove(url)
+                    # If removing this url empties the list, remove the entry
+                    if len(self._hashes[key]) == 0:
+                        self._hashes.pop(source)
+                    break
+        # Check _blacklist
+        for key, value in self._blacklist.items():
             if int(value.split("/")[-1]) == payload.message_id:
                 self._blacklist.pop(key)
+                break
