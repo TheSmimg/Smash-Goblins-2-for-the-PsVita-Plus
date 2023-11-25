@@ -12,7 +12,6 @@ class EventsCog(commands.Cog):
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
         if not payload.member or payload.member == self.bot.user:
             return
-        print('test')
         if payload.emoji.name != "❌":
             return
         channel = self.bot.get_channel(payload.channel_id)
@@ -24,17 +23,14 @@ class EventsCog(commands.Cog):
                 
         if not reaction.me:
             return
-        
 
         await message.delete()
-
-        if message.reference.fail_if_not_exists:
-            await channel.send(embed=discord.Embed(title="Unable to retrieve and blacklist message."), delete_after=5)
 
         reference = message.reference.resolved
 
         if reference is None or isinstance(reference, discord.DeletedReferencedMessage):
             await channel.send(embed=discord.Embed(title="Retrieved message was a NoneType or DeletedReferencedMessage, unable to blacklist."), delete_after=5)
+            return
 
         watcher = Servers.get_watcher(reference.guild.id)
         await watcher.blacklist(reference)

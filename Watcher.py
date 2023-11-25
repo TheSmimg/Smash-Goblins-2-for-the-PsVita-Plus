@@ -30,11 +30,19 @@ class Watcher:
         self._blacklist = {}
         self.is_up_to_date = asyncio.Event()
         
+        # Concurrent method that iterates over all messages in a channel
+        # populating the _hashes dict with media hashes
         async def worker(self):
+            # Set bot to appear idle as a hint that the bot is busy
             await bot.change_presence(status=discord.Status.idle)
             async for msg in channel.history(limit=None, oldest_first=True):
                 for source in await Harvester.harvest_message(msg):
+                    # If this hash is already here, append instead of replacing
+                    if self._hashes.get(source) is not None:
+                        self._hashes[source].append(msg.jump_url)
+                        continue
                     self._hashes[source] = [msg.jump_url]
+            # Set bot to appear online
             await bot.change_presence()
 
         def finish_worker(worker):
@@ -129,7 +137,7 @@ class Watcher:
                     self._hashes[key].remove(url)
                     # If removing this url empties the list, remove the entry
                     if len(self._hashes[key]) == 0:
-                        self._hashes.pop(source)
+                        self._hashes.pop(key)
                     break
         # Check _blacklist
         for key, value in self._blacklist.items():
