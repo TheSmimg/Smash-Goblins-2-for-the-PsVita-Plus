@@ -11,17 +11,13 @@ class SettingsCog(commands.Cog):
 
     @commands.hybrid_command(name="channel", description="Sets the channel the bot will keep track of")
     async def _channel(self, ctx: commands.Context, channel: discord.TextChannel) -> None:
-        if channel is not None:
-            Servers.add(ctx.guild.id, Watcher(self.bot, channel))
-            await Utils.send(ctx, 'Set!')
-            return
-        if len(ctx.message.channel_mentions) != 0:
-            Servers.add(ctx.guild.id, Watcher(self.bot, ctx.message.channel_mentions[0]))
-            await Utils.send(ctx, 'Set!')
-            return
-
-        # Didn't provide a valid channel
-        await Utils.send(ctx, 'You need to provide a channel!', 'Please mention a channel to watch.')
+        if not channel and not ctx.message.channel_mentions:
+            # Didn't provide a valid channel
+            await Utils.send(ctx, 'You need to provide a channel!', 'Please mention a channel to watch.')
+        Servers.add(ctx.guild.id, Watcher(self.bot, 
+                                          channel if channel else ctx.message.channel_mentions[0]))
+        await Utils.send(ctx, 'Set!')
+        return
 
 async def setup(bot):
     Utils.pront("Cog SettingsCog loading...")

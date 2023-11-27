@@ -42,14 +42,21 @@ class EventsCog(commands.Cog):
         if message.author.bot:
             return 
         watcher = Servers.get_watcher(message.guild.id)
-        if watcher is not None:
-            await watcher.process(message)
+        if not watcher:
+            return
+        if watcher.channel != message.channel:
+            return
+
+        await watcher.process(message)
 
     @commands.Cog.listener()
     async def on_raw_message_delete(self, payload: discord.RawMessageDeleteEvent) -> None:
         watcher = Servers.get_watcher(payload.guild_id)
-        if watcher is not None:
-            await watcher.raw_delete(payload)
+        if not watcher:
+            return
+        if payload.channel_id != watcher.channel.id:
+            return
+        await watcher.raw_delete(payload)
 
 async def setup(bot):
     Utils.pront("Cog EventsCog loading...")
