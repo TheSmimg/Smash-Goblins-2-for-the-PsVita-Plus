@@ -22,6 +22,7 @@ class Bot(commands.Bot):  # initiates the bots intents and on_ready event
     async def setup_hook(self):
         await self.load_extension("cogs.SettingsCog")
         await self.load_extension("cogs.EventsCog")
+        await self.load_extension("cogs.DebugCog")
         Utils.pront("Cogs loaded!")
 
     async def on_ready(self):
