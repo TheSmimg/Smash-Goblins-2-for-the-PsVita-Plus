@@ -15,7 +15,8 @@ class SettingsCog(commands.Cog):
             # Didn't provide a valid channel
             await Utils.send(ctx, 'You need to provide a channel!', 'Please mention a channel to watch.')
         Servers.add(ctx.guild.id, Watcher(self.bot, 
-                                          channel if channel else ctx.message.channel_mentions[0]))
+                                          channel if channel else ctx.message.channel_mentions[0]
+                                          ))
         await Utils.send(ctx, 'Set!')
         return
 
