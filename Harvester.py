@@ -20,7 +20,7 @@ async def harvest_message(message: discord.Message) -> set[str]:
     if len(hashes) < len(message.attachments) + len(urls):
         # If a file couldn't be hashed by url, just hash the url
         for url in urls:
-            hashes.add(Harvester.md5_hash_handler(url.encode()))
+            hashes.add(await Harvester.md5_hash_handler(url.encode()))
     return hashes
     
 
@@ -34,7 +34,7 @@ class Harvester:
 
 
     async def get_attachment_hash(attachment: discord.Attachment, hashes: set[str]) -> str:
-        hashes.add(Harvester.md5_hash_handler(await attachment.read()))
+        hashes.add(await Harvester.md5_hash_handler(await attachment.read()))
 
     
     async def file_hash_from_url(url: str, session: aiohttp.ClientSession, hashes: set[str]) -> str:
@@ -44,7 +44,7 @@ class Harvester:
             # Check for disallowed header content types
             if response.content_type.split("/")[0] in ["application", "font", "example", "message", "model", "multipart", "text"]:
                 return
-            hashes.add(Harvester.md5_hash_handler(await response.read()))
+            hashes.add(await Harvester.md5_hash_handler(await response.read()))
 
     def __md5sum(data: bytes) -> bytes:
         return hashlib.md5(data).digest()
