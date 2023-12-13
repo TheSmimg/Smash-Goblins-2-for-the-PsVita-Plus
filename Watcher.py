@@ -81,7 +81,7 @@ class Watcher:
             # Match & permitted
             self._hashes[source].append(message.jump_url)
             self.is_up_to_date.set()
-            reply = await message.reply(embed=Utils.get_embed(message, "Erm... Repost!!", content=match[0]))
+            reply = await message.reply(embed=Utils.get_embed(message, "Erm... Repost!!", match[0]))
             await reply.add_reaction('❌')
             return True
         self.is_up_to_date.set()
