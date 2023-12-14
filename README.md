@@ -1,13 +1,14 @@
 Smash Goblins 2 for the PsVita+
 ===============================
-A discord bot based off of `discord.py <https://github.com/Rapptz/discord.py/>`__ that binds to a channel and sends a notification whenever images, audio, videos or urls are reposted.
+A discord bot based off of [discord.py](https://github.com/Rapptz/discord.py/) that binds to a channel and sends a notification whenever images, audio, videos or urls are reposted.
 
 Installing
 ----------
 **Python 3.11 or higher is required**
 
-Requirements are listed in the `requirements.txt` file.
+Requirements are listed in the ``requirements.txt`` file.
 
+Run the `Bot.py` file to start the bot.
 
 Dotenv Configuration
 --------------------
@@ -18,10 +19,9 @@ A maximum per-file memory usage limit is also set via the .env by setting a `max
 This should be an integer representing the maximum size in bytes.
 **This can be larger than the 500MiB discord limit, as the bot will attempt to download any urls that it encounters that point to a file.**
 
-Example .env
-~~~~~~~~~~~~
-.. code::env
-
-    key="aaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbb.cccccccccccccccccccccccccccccccccccccc"
-    # Maximum size of 512MiB
-    max_file_size=536870912
+### Example .env
+```env
+key="aaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbb.cccccccccccccccccccccccccccccccccccccc"
+# Maximum size of 512MiB
+max_file_size=536870912
+```
