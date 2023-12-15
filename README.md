@@ -16,7 +16,7 @@ Dotenv Configuration
 Out of the box, the bot will search for a discord token in the .env named `key`
 
 A maximum per-file memory usage limit is also set via the .env by setting a `max_file_size` variable.
-This should be an integer representing the maximum size in bytes.
+This should be an integer representing the maximum size in bytes.  A value of 0 will disable filesize checking.
 **This can be larger than the 500MiB discord limit, as the bot will attempt to download any urls that it encounters that point to a file.**
 
 ### Example .env
