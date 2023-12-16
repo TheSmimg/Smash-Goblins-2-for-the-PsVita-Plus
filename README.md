@@ -1,6 +1,6 @@
 Smash Goblins 2 for the PsVita+
 ===============================
-A discord bot based off of [discord.py](https://github.com/Rapptz/discord.py/) that binds to a channel and sends a notification whenever images, audio, videos or urls are reposted.
+A discord bot based off of [discord.py](https://github.com/Rapptz/discord.py/) and my [bot core](https://github.com/Sm1mg/discord.py-bot-core/tree/hybrid) that binds to a channel and sends a notification whenever images, audio, videos or urls are reposted.
 
 Installing
 ----------
