@@ -57,8 +57,8 @@ class DebugCog(commands.Cog):
 
     @list_group.command(name='duplicates', description='lists duplicate hashes')
     async def _list_duplicates(self, ctx: commands.Context) -> None:
-        watcher = Servers.get_watcher(ctx.guild.id)
-        if not watcher:
+        
+        if not (watcher := Servers.get_watcher(ctx.guild.id)):
             return
         key_val_list = watcher._hashes.items()
         embeds = []

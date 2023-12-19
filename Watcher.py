@@ -53,39 +53,34 @@ class Watcher:
         self.task.add_done_callback(finish_worker)
 
 
-    async def process(self, message: discord.Message) -> bool:
+    async def process(self, message: discord.Message) -> None:
         """
-        Processes the supplied message and checks if it's media is a repost.
+        Processes the supplied message and checks if its media is a repost.
 
         Parameters
         ----------
         message : `discord.Message`
             The message to process.
-        
-        Returns
-        -------
-        `True`:
-            Returns True when the message's media has been reposted.
-        `False`:
-            Returns False when the message's media has not been posted before.
         """
         await self.is_up_to_date.wait()
         self.is_up_to_date.clear()
         for source in await Harvester.harvest_message(message):
             if self._blacklist.get(source) is not None:
-                break
+                continue
             # No match
-            if ( match := self._hashes.get(source) ) is None:
+            if (match := self._hashes.get(source)) is None:
                 self._hashes[source] = [message.jump_url]
                 continue
             # Match & permitted
             self._hashes[source].append(message.jump_url)
-            self.is_up_to_date.set()
-            reply = await message.reply(embed=Utils.get_embed(message, "Erm... Repost!!", match[0]))
+            try:
+                reply = await message.reply(embed=Utils.get_embed(message, "Erm... Repost!!", match[0]))
+            except discord.errors.HTTPException as e:
+                Utils.pront(e,"ERROR")
+                await message.channel.send(embed=Utils.get_embed(title="That was a repost, but you deleted it...", description=f"Next time...\n\n{match[0]}"), delete_after=30)
+                continue
             await reply.add_reaction('❌')
-            return True
         self.is_up_to_date.set()
-        return False
     
 
     async def blacklist(self, message: discord.Message) -> None:
