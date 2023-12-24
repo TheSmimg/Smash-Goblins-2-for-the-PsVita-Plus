@@ -114,6 +114,8 @@ class Watcher:
         payload : `discord.RawMessageDeleteEvent`
             The RawMessageDeleteEvent to process.  These are provided by the `on_raw_message_delete` event in discord.
         """
+        await self.is_up_to_date.wait()
+        self.is_up_to_date.clear()
         if payload.cached_message:
             for source in await Harvester.harvest_message(payload.cached_message):
                 if self._blacklist.get(source):
@@ -124,6 +126,7 @@ class Watcher:
                     # If removing this url empties the list, remove the entry
                     if len(self._hashes[source]) == 0:
                         self._hashes.pop(source)
+            self.is_up_to_date.set()
             return
         # Check _hashes
         for key, value in self._hashes.items():
@@ -139,3 +142,4 @@ class Watcher:
             if int(value.split("/")[-1]) == payload.message_id:
                 self._blacklist.pop(key)
                 break
+        self.is_up_to_date.set()
