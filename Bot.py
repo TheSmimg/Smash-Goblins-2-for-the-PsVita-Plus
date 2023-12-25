@@ -1,6 +1,5 @@
 import discord
 import os
-import traceback
 from discord.ext import commands
 from dotenv import load_dotenv
 

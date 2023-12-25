@@ -37,6 +37,7 @@ class Watcher:
             await bot.change_presence(status=discord.Status.idle)
             async for msg in channel.history(limit=None, oldest_first=True):
                 for source in await Harvester.harvest_message(msg):
+                    print(msg.content)
                     # If this hash is already here, append instead of replacing
                     if self._hashes.get(source) is not None:
                         self._hashes[source].append(msg.jump_url)
@@ -65,6 +66,7 @@ class Watcher:
         await self.is_up_to_date.wait()
         self.is_up_to_date.clear()
         for source in await Harvester.harvest_message(message):
+            print(f"process {message.content}")
             if self._blacklist.get(source) is not None:
                 continue
             # No match
@@ -97,6 +99,8 @@ class Watcher:
         await self.is_up_to_date.wait()
         self.is_up_to_date.clear()
         for source in await Harvester.harvest_message(message):
+            if self._blacklist.get(source):
+                continue
             self._blacklist[source] = message.jump_url
             self._hashes.pop(source)
         self.is_up_to_date.set()
