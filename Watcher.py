@@ -12,12 +12,12 @@ class Watcher:
         
         Attributes
         ----------
-        is_up_to_date : `asyncio.Event()`
-            An event that is set when the Watcher is not processing messages in this channel.
+        channel : `discord.abc.GuildChannel`
+            The channel this Watcher is bound to.
         
         Methods
         -------
-        async process(message: `discord.Message`):
+        async process(message: `discord.Message`) -> Generator[list[str], None, None]:
             A generator that processes the supplied message and checks if its media is a repost.
         async blacklist(message: `discord.Message`):
             Adds the supplied message to the internal blacklist.
@@ -29,25 +29,26 @@ class Watcher:
         self.channel = channel
         self._hashes = {}
         self._blacklist = {}
-        self.is_up_to_date = asyncio.Event()
+        self._lock = asyncio.Lock()
         
         # Concurrent method that iterates over all messages in a channel
         # populating the _hashes dict with media hashes
         async def worker(self):
             # Set bot to appear idle as a hint that the bot is busy
             await bot.change_presence(status=discord.Status.idle)
-            async for msg in channel.history(limit=None, oldest_first=True):
-                for source in await Harvester.harvest_message(msg):
-                    # If this hash is already here, append instead of replacing
-                    if self._hashes.get(source) is not None:
-                        self._hashes[source].append(msg.jump_url)
-                        continue
-                    self._hashes[source] = [msg.jump_url]
+            async with self._lock:
+                async for msg in channel.history(limit=None, oldest_first=True):
+                    for source in await Harvester.harvest_message(msg):
+                        print(msg.content)
+                        # If this hash is already here, append instead of replacing
+                        if self._hashes.get(source) is not None:
+                            self._hashes[source].append(msg.jump_url)
+                            continue
+                        self._hashes[source] = [msg.jump_url]
             # Set bot to appear online
             await bot.change_presence()
 
         def finish_worker(worker):
-            self.is_up_to_date.set()
             del worker
 
         self.task = asyncio.create_task(worker(self))
@@ -68,19 +69,18 @@ class Watcher:
         `list`[`str`]:
             A list of all matches of each source, if any exist.
         """
-        await self.is_up_to_date.wait()
-        self.is_up_to_date.clear()
-        for source in await Harvester.harvest_message(message):
-            if self._blacklist.get(source) is not None:
-                continue
-            # No match
-            if (match := self._hashes.get(source)) is None:
-                self._hashes[source] = [message.jump_url]
-                continue
-            # Match & permitted
-            self._hashes[source].append(message.jump_url)
-            yield match
-        self.is_up_to_date.set()
+        async with self._lock:
+            for source in await Harvester.harvest_message(message):
+                print(f"process {message.content}")
+                if self._blacklist.get(source) is not None:
+                    continue
+                # No match
+                if (match := self._hashes.get(source)) is None:
+                    self._hashes[source] = [message.jump_url]
+                    continue
+                # Match & permitted
+                self._hashes[source].append(message.jump_url)
+                yield match
         return
     
 
@@ -95,14 +95,12 @@ class Watcher:
         message : `discord.Message`
             The message to add to the blacklist.
         """
-        await self.is_up_to_date.wait()
-        self.is_up_to_date.clear()
-        for source in await Harvester.harvest_message(message):
-            if self._blacklist.get(source):
-                continue
-            self._blacklist[source] = message.jump_url
-            self._hashes.pop(source)
-        self.is_up_to_date.set()
+        async with self._lock:
+            for source in await Harvester.harvest_message(message):
+                if self._blacklist.get(source):
+                    continue
+                self._blacklist[source] = message.jump_url
+                self._hashes.pop(source)
 
     
     async def raw_delete(self, payload: discord.RawMessageDeleteEvent) -> None:
@@ -117,32 +115,31 @@ class Watcher:
         payload : `discord.RawMessageDeleteEvent`
             The RawMessageDeleteEvent to process.  These are provided by the `on_raw_message_delete` event in discord.
         """
-        await self.is_up_to_date.wait()
-        self.is_up_to_date.clear()
-        if payload.cached_message:
-            for source in await Harvester.harvest_message(payload.cached_message):
-                if self._blacklist.get(source):
-                    self._blacklist.pop(source)
-                    continue
-                if self._hashes.get(source):
-                    self._hashes[source].remove(payload.cached_message.jump_url)
-                    # If removing this url empties the list, remove the entry
-                    if len(self._hashes[source]) == 0:
-                        self._hashes.pop(source)
-            self.is_up_to_date.set()
-            return
-        # Check _hashes
-        for key, value in self._hashes.items():
-            for url in value:
-                if int(url.split("/")[-1]) == payload.message_id:
-                    self._hashes[key].remove(url)
-                    # If removing this url empties the list, remove the entry
-                    if len(self._hashes[key]) == 0:
-                        self._hashes.pop(key)
+        async with self._lock:
+            if payload.cached_message:
+                for source in await Harvester.harvest_message(payload.cached_message):
+                    if self._blacklist.get(source):
+                        self._blacklist.pop(source)
+                        # Continue here because a source in _blacklist
+                        # will never be in _hashes
+                        continue
+                    if self._hashes.get(source):
+                        self._hashes[source].remove(payload.cached_message.jump_url)
+                        # If removing this url empties the list, remove the entry
+                        if len(self._hashes[source]) == 0:
+                            self._hashes.pop(source)
+                return
+            # Check _hashes
+            for key, value in self._hashes.items():
+                for url in value:
+                    if int(url.split("/")[-1]) == payload.message_id:
+                        self._hashes[key].remove(url)
+                        # If removing this url empties the list, remove the entry
+                        if len(self._hashes[key]) == 0:
+                            self._hashes.pop(key)
+                        break
+            # Check _blacklist
+            for key, value in self._blacklist.items():
+                if int(value.split("/")[-1]) == payload.message_id:
+                    self._blacklist.pop(key)
                     break
-        # Check _blacklist
-        for key, value in self._blacklist.items():
-            if int(value.split("/")[-1]) == payload.message_id:
-                self._blacklist.pop(key)
-                break
-        self.is_up_to_date.set()
