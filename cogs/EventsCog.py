@@ -1,3 +1,4 @@
+import asyncio
 import discord
 from discord.ext import commands
 
@@ -46,8 +47,20 @@ class EventsCog(commands.Cog):
             return
         if watcher.channel != message.channel:
             return
+        
+        # Task worker that handles calling out users for reposts
+        async def repost(match: list[str]):
+            try:
+                reply = await message.reply(embed=Utils.get_embed(message, "Erm... Repost!!", match[0]))
+            except discord.errors.HTTPException as e:
+                Utils.pront(e,"ERROR")
+                await message.channel.send(embed=Utils.get_embed(title="That was a repost, but you deleted it...", description=f"Next time...\n\n{match[0]}"), delete_after=30)
+                return
+            await reply.add_reaction('❌')
 
-        await watcher.process(message)
+        async for match in watcher.process(message):
+            asyncio.create_task(repost(match))
+            
 
     @commands.Cog.listener()
     async def on_raw_message_delete(self, payload: discord.RawMessageDeleteEvent) -> None:

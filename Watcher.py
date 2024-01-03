@@ -1,8 +1,9 @@
 import asyncio
 import discord
 
+from typing import Generator
+
 import Harvester
-import Utils
 
 class Watcher:
     def __init__(self, bot: discord.Client, channel: discord.abc.GuildChannel):
@@ -17,7 +18,7 @@ class Watcher:
         Methods
         -------
         async process(message: `discord.Message`):
-            Processes the supplied message and checks if it's media is a repost.
+            A generator that processes the supplied message and checks if its media is a repost.
         async blacklist(message: `discord.Message`):
             Adds the supplied message to the internal blacklist.
         async raw_delete(payload: discord.RawMessageDeleteEvent):
@@ -37,7 +38,6 @@ class Watcher:
             await bot.change_presence(status=discord.Status.idle)
             async for msg in channel.history(limit=None, oldest_first=True):
                 for source in await Harvester.harvest_message(msg):
-                    print(msg.content)
                     # If this hash is already here, append instead of replacing
                     if self._hashes.get(source) is not None:
                         self._hashes[source].append(msg.jump_url)
@@ -54,19 +54,23 @@ class Watcher:
         self.task.add_done_callback(finish_worker)
 
 
-    async def process(self, message: discord.Message) -> None:
+    async def process(self, message: discord.Message) -> Generator[list[str], None, None]:
         """
-        Processes the supplied message and checks if its media is a repost.
+        A generator that processes the supplied message and checks if its media is a repost.
 
         Parameters
         ----------
         message : `discord.Message`
             The message to process.
+
+        Yields
+        ------
+        `list`[`str`]:
+            A list of all matches of each source, if any exist.
         """
         await self.is_up_to_date.wait()
         self.is_up_to_date.clear()
         for source in await Harvester.harvest_message(message):
-            print(f"process {message.content}")
             if self._blacklist.get(source) is not None:
                 continue
             # No match
@@ -75,14 +79,9 @@ class Watcher:
                 continue
             # Match & permitted
             self._hashes[source].append(message.jump_url)
-            try:
-                reply = await message.reply(embed=Utils.get_embed(message, "Erm... Repost!!", match[0]))
-            except discord.errors.HTTPException as e:
-                Utils.pront(e,"ERROR")
-                await message.channel.send(embed=Utils.get_embed(title="That was a repost, but you deleted it...", description=f"Next time...\n\n{match[0]}"), delete_after=30)
-                continue
-            await reply.add_reaction('❌')
+            yield match
         self.is_up_to_date.set()
+        return
     
 
     async def blacklist(self, message: discord.Message) -> None:
