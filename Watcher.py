@@ -17,11 +17,11 @@ class Watcher:
         
         Methods
         -------
-        async process(message: `discord.Message`) -> Generator[list[str], None, None]:
+        async process(message: `discord.Message`) -> `Generator`[`list`[`str`], `None`, `None`]:
             A generator that processes the supplied message and checks if its media is a repost.
         async blacklist(message: `discord.Message`):
             Adds the supplied message to the internal blacklist.
-        async raw_delete(payload: discord.RawMessageDeleteEvent):
+        async raw_delete(payload: `discord.RawMessageDeleteEvent`):
             Processes a RawMessageDeleteEvent to avoid detecting deleted messages as reposts.
         
             
@@ -39,10 +39,7 @@ class Watcher:
             async with self._lock:
                 async for msg in channel.history(limit=None, oldest_first=True):
                     for source in await Harvester.harvest_message(msg):
-                        print(msg.content)
                         # If this hash is already here, append instead of replacing
-                        if self._hashes.get(source) is not None:
-                            self._hashes[source].append(msg.jump_url)
                             continue
                         self._hashes[source] = [msg.jump_url]
             # Set bot to appear online
@@ -69,10 +66,10 @@ class Watcher:
         `list`[`str`]:
             A list of all matches of each source, if any exist.
         """
-        async with self._lock:
-            for source in await Harvester.harvest_message(message):
-                print(f"process {message.content}")
-                if self._blacklist.get(source) is not None:
+        # This can cause some weird results, but it'll avoid a softlock
+        for source in await Harvester.harvest_message(message):
+            async with self._lock:
+                if self._blacklist.get(source):
                     continue
                 # No match
                 if (match := self._hashes.get(source)) is None:
@@ -80,8 +77,7 @@ class Watcher:
                     continue
                 # Match & permitted
                 self._hashes[source].append(message.jump_url)
-                yield match
-        return
+            yield match
     
 
     async def blacklist(self, message: discord.Message) -> None:
@@ -100,7 +96,10 @@ class Watcher:
                 if self._blacklist.get(source):
                     continue
                 self._blacklist[source] = message.jump_url
-                self._hashes.pop(source)
+                try:
+                    self._hashes.pop(source)
+                except:
+                    pass
 
     
     async def raw_delete(self, payload: discord.RawMessageDeleteEvent) -> None:

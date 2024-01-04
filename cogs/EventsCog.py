@@ -25,8 +25,6 @@ class EventsCog(commands.Cog):
         if not reaction.me:
             return
 
-        await message.delete()
-
         reference = message.reference.resolved
 
         if reference is None or isinstance(reference, discord.DeletedReferencedMessage):
@@ -34,8 +32,13 @@ class EventsCog(commands.Cog):
             return
 
         watcher = Servers.get_watcher(reference.guild.id)
-        await watcher.blacklist(reference)
-
+        if not watcher:
+            return
+        if watcher.channel != message.channel:
+            return
+        
+        await message.delete()
+        await watcher.blacklist(message.guild.id)
         await reference.reply(embed=discord.Embed(title='Blacklisted.'), delete_after=5, mention_author=False)
 
     @commands.Cog.listener()
@@ -47,7 +50,6 @@ class EventsCog(commands.Cog):
             return
         if watcher.channel != message.channel:
             return
-        
         # Task worker that handles calling out users for reposts
         async def repost(match: list[str]):
             try:
