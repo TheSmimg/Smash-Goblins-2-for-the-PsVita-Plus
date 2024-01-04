@@ -37,9 +37,11 @@ class Watcher:
             # Set bot to appear idle as a hint that the bot is busy
             await bot.change_presence(status=discord.Status.idle)
             async with self._lock:
-                async for msg in channel.history(limit=None, oldest_first=True):
+                async for msg in channel.history(limit=None):
                     for source in await Harvester.harvest_message(msg):
                         # If this hash is already here, append instead of replacing
+                        if self._hashes.get(source):
+                            self._hashes[source].insert(0, msg.jump_url)
                             continue
                         self._hashes[source] = [msg.jump_url]
             # Set bot to appear online
