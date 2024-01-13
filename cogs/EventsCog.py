@@ -38,7 +38,7 @@ class EventsCog(commands.Cog):
             return
         
         await message.delete()
-        await watcher.blacklist(message.guild.id)
+        await watcher.blacklist(message)
         await reference.reply(embed=discord.Embed(title='Blacklisted.'), delete_after=5, mention_author=False)
 
     @commands.Cog.listener()
