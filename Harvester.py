@@ -16,9 +16,9 @@ async def harvest_message(message: discord.Message) -> set[str]:
     async with aiohttp.ClientSession() as session:
         async with asyncio.TaskGroup() as group:
             for attachment in message.attachments:
-                group.create_task(Harvester.get_attachment_hash(attachment, hashes))
+                group.create_task(Harvester.hash_file(attachment.url, session, hashes))
             for url in urls:
-                group.create_task(Harvester.file_hash_from_url(url, session, hashes))
+                group.create_task(Harvester.hash_file(url, session, hashes))
 
     if len(hashes) < len(message.attachments) + len(urls):
         # If a file couldn't be hashed by url, just hash the url
@@ -50,26 +50,21 @@ class Harvester:
         return urls
 
 
-    async def get_attachment_hash(attachment: discord.Attachment, hashes: set[str]) -> None:
-        content = await attachment.read()
-        if Harvester.max_size != 0 and len(content) > Harvester.max_size:
-            Utils.pront("Attachment size exceeded maximum memory usage limit, aborting.", "WARNING")
-            return
-        hashes.add(await Harvester.md5_hash_handler(content))
-
-    
-    async def file_hash_from_url(url: str, session: aiohttp.ClientSession, hashes: set[str]) -> None:
+    async def hash_file(url: str, session: aiohttp.ClientSession, hashes: set[str]) -> None:
         async with session.get(url) as response:
             if not response.ok:
                 return
             # Check for disallowed header content types
             if response.content_type.split("/")[0] in ["application", "font", "example", "message", "model", "multipart", "text"]:
                 return
-            content = await response.read()
-            if Harvester.max_size != 0 and len(content) > Harvester.max_size:
-                Utils.pront("URL response size exceeded maximum memory usage limit, aborting.", "WARNING")
-                return
-            hashes.add(await Harvester.md5_hash_handler(await response.read()))
+            content = bytes()
+            while chunk := await response.content.readany():
+                content+=chunk
+                if len(content) > Harvester.max_size:
+                    Utils.pront("URL response size exceeded maximum memory usage limit, aborting.", "WARNING")
+                    return
+                
+            hashes.add(await Harvester.md5_hash_handler(content))
 
     def __md5sum(data: bytes) -> bytes:
         return hashlib.md5(data).digest()
