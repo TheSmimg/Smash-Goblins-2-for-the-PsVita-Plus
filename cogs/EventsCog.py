@@ -66,6 +66,8 @@ class EventsCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_raw_message_delete(self, payload: discord.RawMessageDeleteEvent) -> None:
+        if payload.cached_message and payload.cached_message.author.bot:
+            return
         watcher = Servers.get_watcher(payload.guild_id)
         if not watcher:
             return
