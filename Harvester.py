@@ -58,12 +58,15 @@ class Harvester:
             if response.content_type.split("/")[0] in ["application", "font", "example", "message", "model", "multipart", "text"]:
                 return
             content = bytes()
-            while chunk := await response.content.readany():
-                content+=chunk
-                if len(content) > Harvester.max_size:
-                    Utils.pront("URL response size exceeded maximum memory usage limit, aborting.", "WARNING")
-                    return
-                
+            try:
+                while chunk := await response.content.readany():
+                    content+=chunk
+                    if len(content) > Harvester.max_size:
+                        Utils.pront("URL response size exceeded maximum memory usage limit, aborting.", "WARNING")
+                        return
+            except TimeoutError as t:
+                Utils.pront(f"TimeoutError occurred with content at link {url}: {t}")
+                return 
             hashes.add(await Harvester.md5_hash_handler(content))
 
     def __md5sum(data: bytes) -> bytes:
