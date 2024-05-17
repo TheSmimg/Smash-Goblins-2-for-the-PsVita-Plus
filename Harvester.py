@@ -65,7 +65,7 @@ class Harvester:
                         Utils.pront("URL response size exceeded maximum memory usage limit, aborting.", "WARNING")
                         return
             except TimeoutError as t:
-                Utils.pront(f"TimeoutError occurred with content at link {url}: {t}")
+                Utils.pront(f"TimeoutError occurred with content at link {url}: {t}", "ERROR")
                 return 
             hashes.add(await Harvester.md5_hash_handler(content))
 
