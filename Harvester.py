@@ -69,10 +69,10 @@ class Harvester:
                         return
             except TimeoutError as t:
                 Utils.pront(f"TimeoutError occurred with content at link {url}: {t}", "ERROR")
-                return Harvester.hash_file(url, session, hashes)
+                return await Harvester.hash_file(url, session, hashes)
             except aiohttp.client_exceptions.ClientPayloadError as p:
                 Utils.pront(f"ClientPayloadError occurred with content at link {url}: {p}", "ERROR")
-                return Harvester.hash_file(url, session, hashes)
+                return await Harvester.hash_file(url, session, hashes)
 
             hashes.add(await Harvester.md5_hash_handler(content))
 
