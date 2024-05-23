@@ -1,5 +1,6 @@
 import aiohttp
 import asyncio
+import aiohttp.client_exceptions
 import discord
 import hashlib
 import os
@@ -60,13 +61,19 @@ class Harvester:
             content = bytes()
             try:
                 while chunk := await response.content.readany():
+                    # Apparently sleeping here helps prevent ClientPayloadError?  It's probably just network-related and will be fixed when I finally wire the connection
+                    await asyncio.sleep(0)
                     content+=chunk
                     if len(content) > Harvester.max_size:
                         Utils.pront("URL response size exceeded maximum memory usage limit, aborting.", "WARNING")
                         return
             except TimeoutError as t:
                 Utils.pront(f"TimeoutError occurred with content at link {url}: {t}", "ERROR")
-                return 
+                return Harvester.hash_file(url, session, hashes)
+            except aiohttp.client_exceptions.ClientPayloadError as p:
+                Utils.pront(f"ClientPayloadError occurred with content at link {url}: {p}", "ERROR")
+                return Harvester.hash_file(url, session, hashes)
+
             hashes.add(await Harvester.md5_hash_handler(content))
 
     def __md5sum(data: bytes) -> bytes:
