@@ -14,7 +14,7 @@ async def harvest_message(message: discord.Message) -> set[str]:
     hashes = set()
 
     # Share aiohttp.ClientSession over all file_hash_from_url tasks
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(1200)) as session:
         async with asyncio.TaskGroup() as group:
             for attachment in message.attachments:
                 group.create_task(Harvester.hash_file(attachment.url, session, hashes))
